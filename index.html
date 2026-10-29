@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Live</title>
+  <link rel="icon" href="/img/avatar.jpg">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="topo">
+    <a class="marca" href="/"><img src="/img/logo.webp" alt="Logo"></a>
+    <div id="conta" class="conta">
+      <button id="entrar" class="botao" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.3 3 3 6.4v13.1h4.5V22h2.6l2.4-2.5h3.6l4.9-4.9V3H4.3Zm15.1 10.8-2.8 2.8h-4.5l-2.4 2.4v-2.4H5.9V4.8h13.5v9Zm-2.8-5.6v4.9h-1.7V8.2h1.7Zm-4.5 0v4.9h-1.7V8.2h1.7Z" fill="currentColor"/></svg>
+        Entrar com Twitch
+      </button>
+      <div id="usuario" class="usuario" hidden>
+        <img id="usuario-foto" alt="">
+        <div class="usuario-info">
+          <strong id="usuario-nome"></strong>
+          <span id="usuario-minutos"></span>
+        </div>
+        <button id="sair" class="botao-sec">Sair</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="palco">
+      <div id="aviso" class="aviso" hidden></div>
+      <div class="player"><div id="player"></div></div>
+      <p id="status" class="status"></p>
+    </section>
+
+    <aside class="ranking">
+      <h2>Ranking de minutos</h2>
+      <ol id="ranking-lista"></ol>
+      <p id="ranking-vazio" class="vazio" hidden>Ninguém pontuou ainda. Seja o primeiro!</p>
+    </aside>
+  </main>
+
+  <script src="https://embed.twitch.tv/embed/v1.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>
