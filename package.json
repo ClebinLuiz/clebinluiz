@@ -1,0 +1,15 @@
+{
+  "name": "site-twitch-minutos",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Site com login da Twitch, player do canal e ranking de minutos assistidos.",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "pg": "^8.23.1"
+  }
+}

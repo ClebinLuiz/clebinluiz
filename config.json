@@ -1,0 +1,7 @@
+{
+  "clientId": "sub7qy6zn33o166w0dgmviuopv4wvm",
+  "channel": "clebinluiz",
+  "port": 3000,
+  "redirectUri": "http://localhost:3000/callback",
+  "countOnlyLive": true
+}
