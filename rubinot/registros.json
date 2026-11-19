@@ -1,0 +1,13 @@
+{
+  "_comoUsar": "Um item por dia. saldoFinal = gold no fim do dia; cotacao = maior Buy Offer do Rubinicoin no Market. saldoInicial só precisa no primeiro dia (depois puxa o saldo final do dia anterior). Valores em gold cheio.",
+  "dias": [
+    {
+      "data": "2026-11-19",
+      "saldoInicial": 72783309,
+      "saldoFinal": null,
+      "cotacao": 65201,
+      "rubinicoins": 308,
+      "obs": "Início do controle"
+    }
+  ]
+}

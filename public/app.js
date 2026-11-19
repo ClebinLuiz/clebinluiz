@@ -296,11 +296,15 @@ function renderRubinot() {
     editar.className = 'link';
     editar.textContent = 'Editar';
     editar.addEventListener('click', () => editDay(d.data));
-    const apagar = document.createElement('button');
-    apagar.className = 'link neg';
-    apagar.textContent = 'Apagar';
-    apagar.addEventListener('click', () => deleteDay(d.data));
-    acoes.append(editar, apagar);
+    acoes.append(editar);
+    // Dias do GitHub não são apagados pelo site; se você editou um, "Desfazer" volta ao valor do GitHub.
+    if (d.origem === 'site') {
+      const apagar = document.createElement('button');
+      apagar.className = 'link neg';
+      apagar.textContent = d.noGithub ? 'Desfazer' : 'Apagar';
+      apagar.addEventListener('click', () => deleteDay(d.data, d.noGithub));
+      acoes.append(apagar);
+    }
     tr.append(
       td(`${dd}/${m} ${semana}`, 'data'),
       td(num(d.inicial), isNum(d.saldoInicial) ? '' : 'suave'),
@@ -384,8 +388,10 @@ async function saveDay(ev) {
   }
 }
 
-async function deleteDay(data) {
-  if (!confirm(`Apagar o dia ${data.split('-').reverse().join('/')}?`)) return;
+async function deleteDay(data, noGithub = false) {
+  const dia = data.split('-').reverse().join('/');
+  const pergunta = noGithub ? `Desfazer sua edição de ${dia} e voltar ao valor do GitHub?` : `Apagar o dia ${dia}?`;
+  if (!confirm(pergunta)) return;
   try {
     const r = await api('/api/admin/rubinot', 'DELETE', { data });
     if (!r) return;

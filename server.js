@@ -10,6 +10,8 @@ const IMG_DIR = path.join(ROOT, 'img');
 const DATA_DIR = path.join(ROOT, 'data');
 const DATA_FILE = path.join(DATA_DIR, 'minutos.json');
 const RUBINOT_FILE = path.join(DATA_DIR, 'rubinot.json');
+// Registros que o Claude atualiza pelo GitHub (lidos a cada pedido, então basta publicar).
+const RUBINOT_REPO_FILE = path.join(ROOT, 'rubinot', 'registros.json');
 
 // config.json vale para rodar no PC; na hospedagem, as variáveis de ambiente têm prioridade.
 const fileConfig = JSON.parse(fs.readFileSync(path.join(ROOT, 'config.json'), 'utf8'));
@@ -163,8 +165,23 @@ async function saveRubinotDay(data) {
   );
 }
 
+// Junta os dias do GitHub com os lançados pelo site; no mesmo dia, vale o do site.
 function rubinotList() {
-  return Object.keys(rubinot).sort().map((data) => ({ data, ...rubinot[data] }));
+  const all = {};
+  try {
+    const repo = JSON.parse(fs.readFileSync(RUBINOT_REPO_FILE, 'utf8'));
+    for (const d of repo.dias || []) {
+      const { day } = parseRubinotDay(d);
+      if (day) {
+        const { data, ...fields } = day;
+        all[data] = { data, ...fields, origem: 'github' };
+      }
+    }
+  } catch (err) {
+    if (err.code !== 'ENOENT') console.error('Erro ao ler rubinot/registros.json:', err.message);
+  }
+  for (const data of Object.keys(rubinot)) all[data] = { data, ...rubinot[data], origem: 'site', noGithub: Boolean(all[data]) };
+  return Object.keys(all).sort().map((data) => all[data]);
 }
 
 // Confere o que veio do formulário; devolve o registro limpo ou uma mensagem de erro.
