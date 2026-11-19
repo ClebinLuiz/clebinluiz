@@ -21,6 +21,7 @@
           <strong id="usuario-nome"></strong>
           <span id="usuario-minutos"></span>
         </div>
+        <button id="abrir-adm" class="botao-sec botao-adm" hidden>ADM</button>
         <button id="sair" class="botao-sec">Sair</button>
       </div>
     </div>
@@ -39,6 +40,71 @@
       <p id="ranking-vazio" class="vazio" hidden>Ninguém pontuou ainda. Seja o primeiro!</p>
     </aside>
   </main>
+
+  <section id="adm" class="adm" hidden>
+    <div class="adm-topo">
+      <div>
+        <p class="adm-rotulo">ADM · só você vê</p>
+        <h1 id="adm-titulo">Painel ADM</h1>
+      </div>
+      <div class="adm-acoes">
+        <label id="adm-mes-caixa" class="adm-mes" hidden>Mês
+          <select id="adm-mes"></select>
+        </label>
+        <button id="adm-voltar" class="botao-sec">Voltar pra live</button>
+      </div>
+    </div>
+
+    <p id="adm-erro" class="aviso" hidden></p>
+
+    <div id="adm-pastas" class="pastas">
+      <button class="pasta" data-pasta="rubinot">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5A2.5 2.5 0 0 1 5.5 4h4.1l2 2.2h6.9A2.5 2.5 0 0 1 21 8.7v8.8a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5v-11Z" fill="currentColor"/></svg>
+        <strong>Controle Rubinot</strong>
+        <small>Saldo, lucro e Rubinicoin por dia</small>
+      </button>
+    </div>
+
+    <div id="pasta-rubinot" hidden>
+      <div class="cards">
+        <div class="card"><span>Saldo atual</span><strong id="c-saldo">–</strong><small id="c-saldo-data"></small></div>
+        <div class="card"><span>Lucro / prejuízo do mês</span><strong id="c-lucro">–</strong><small id="c-dias"></small></div>
+        <div class="card"><span>Lucro do mês em Rubinicoin</span><strong id="c-rc">–</strong><small id="c-media"></small></div>
+        <div class="card"><span>Cotação do Rubinicoin</span><strong id="c-cot">–</strong><small id="c-rcs"></small></div>
+      </div>
+
+      <form id="form-dia" class="form-dia">
+        <h2 id="form-titulo">Lançar dia</h2>
+        <div class="campos">
+          <label>Data<input type="date" name="data" required></label>
+          <label>Saldo inicial<input name="saldoInicial" inputmode="numeric" placeholder="automático"></label>
+          <label>Saldo final<input name="saldoFinal" inputmode="numeric" placeholder="fim do dia"></label>
+          <label>Cotação RC<input name="cotacao" inputmode="numeric" placeholder="maior Buy Offer"></label>
+          <label>RC na conta<input name="rubinicoins" inputmode="numeric" placeholder="opcional"></label>
+          <label class="largo">Observações<input name="obs" maxlength="300" placeholder="upei, cacei, vendi..."></label>
+        </div>
+        <p class="dica">Saldo inicial só precisa no primeiro dia: depois ele puxa o saldo final do dia anterior. Se a cotação ficar vazia, usa a última informada.</p>
+        <div class="form-acoes">
+          <button class="botao" type="submit">Salvar</button>
+          <button id="form-limpar" class="botao-sec" type="button">Limpar</button>
+          <span id="form-msg" class="form-msg"></span>
+        </div>
+      </form>
+
+      <div class="tabela-caixa">
+        <table class="tabela">
+          <thead>
+            <tr>
+              <th>Data</th><th>Saldo inicial</th><th>Saldo final</th><th>Lucro / prejuízo</th>
+              <th>Cotação RC</th><th>Lucro em RC</th><th>Observações</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="adm-dias"></tbody>
+          <tfoot id="adm-total"></tfoot>
+        </table>
+      </div>
+    </div>
+  </section>
 
   <script src="https://embed.twitch.tv/embed/v1.js"></script>
   <script src="/app.js"></script>

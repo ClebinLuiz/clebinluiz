@@ -9,6 +9,7 @@ const PUBLIC_DIR = path.join(ROOT, 'public');
 const IMG_DIR = path.join(ROOT, 'img');
 const DATA_DIR = path.join(ROOT, 'data');
 const DATA_FILE = path.join(DATA_DIR, 'minutos.json');
+const RUBINOT_FILE = path.join(DATA_DIR, 'rubinot.json');
 
 // config.json vale para rodar no PC; na hospedagem, as variáveis de ambiente têm prioridade.
 const fileConfig = JSON.parse(fs.readFileSync(path.join(ROOT, 'config.json'), 'utf8'));
@@ -20,6 +21,8 @@ const config = {
 const PORT = Number(process.env.PORT) || config.port || 3000;
 const REDIRECT_URI = process.env.REDIRECT_URI || config.redirectUri || `http://localhost:${PORT}/callback`;
 const DATABASE_URL = process.env.DATABASE_URL;
+// Conta da Twitch que vê a aba ADM (por padrão, o dono do canal).
+const ADMIN_LOGIN = String(process.env.ADMIN_LOGIN || config.adminLogin || config.channel || '').toLowerCase();
 
 // Intervalo mínimo entre dois minutos contados para o mesmo usuário
 // (um pouco abaixo de 60s para tolerar atrasos de rede).
@@ -102,6 +105,110 @@ function saveNow() {
   const tmp = DATA_FILE + '.tmp';
   fs.writeFileSync(tmp, JSON.stringify(users, null, 2));
   fs.renameSync(tmp, DATA_FILE);
+}
+
+// ---------- Controle Rubinot (só o ADM) ----------
+// Um registro por dia: { [AAAA-MM-DD]: { saldoInicial, saldoFinal, cotacao, rubinicoins, obs } }
+// Fica no Postgres (tabela rubinot_dias) ou em data/rubinot.json — nunca no GitHub.
+let rubinot = {};
+
+async function loadRubinot() {
+  if (!db) {
+    try {
+      rubinot = JSON.parse(fs.readFileSync(RUBINOT_FILE, 'utf8'));
+    } catch {
+      rubinot = {};
+    }
+    return;
+  }
+  await db.query(`CREATE TABLE IF NOT EXISTS rubinot_dias (
+    data TEXT PRIMARY KEY,
+    saldo_inicial BIGINT,
+    saldo_final BIGINT,
+    cotacao DOUBLE PRECISION,
+    rubinicoins INTEGER,
+    obs TEXT
+  )`);
+  const { rows } = await db.query('SELECT * FROM rubinot_dias');
+  const n = (v) => (v == null ? null : Number(v));
+  for (const r of rows) {
+    rubinot[r.data] = {
+      saldoInicial: n(r.saldo_inicial),
+      saldoFinal: n(r.saldo_final),
+      cotacao: n(r.cotacao),
+      rubinicoins: n(r.rubinicoins),
+      obs: r.obs || '',
+    };
+  }
+}
+
+async function saveRubinotDay(data) {
+  const d = rubinot[data];
+  if (!db) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    const tmp = RUBINOT_FILE + '.tmp';
+    fs.writeFileSync(tmp, JSON.stringify(rubinot, null, 2));
+    fs.renameSync(tmp, RUBINOT_FILE);
+    return;
+  }
+  if (!d) {
+    await db.query('DELETE FROM rubinot_dias WHERE data = $1', [data]);
+    return;
+  }
+  await db.query(
+    `INSERT INTO rubinot_dias (data, saldo_inicial, saldo_final, cotacao, rubinicoins, obs)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     ON CONFLICT (data) DO UPDATE SET saldo_inicial = $2, saldo_final = $3, cotacao = $4, rubinicoins = $5, obs = $6`,
+    [data, d.saldoInicial, d.saldoFinal, d.cotacao, d.rubinicoins, d.obs]
+  );
+}
+
+function rubinotList() {
+  return Object.keys(rubinot).sort().map((data) => ({ data, ...rubinot[data] }));
+}
+
+// Confere o que veio do formulário; devolve o registro limpo ou uma mensagem de erro.
+function parseRubinotDay(body) {
+  const data = String(body?.data || '');
+  const [y, m, d] = data.split('-').map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(data) || date.getUTCDate() !== d || date.getUTCMonth() !== m - 1) {
+    return { error: 'data inválida' };
+  }
+  const out = { data };
+  for (const [key, max] of [['saldoInicial', 1e15], ['saldoFinal', 1e15], ['cotacao', 1e12], ['rubinicoins', 1e9]]) {
+    const v = body[key];
+    if (v === null || v === undefined || v === '') {
+      out[key] = null;
+      continue;
+    }
+    if (typeof v !== 'number' || !Number.isFinite(v) || v < 0 || v > max) return { error: `valor inválido em ${key}` };
+    out[key] = key === 'cotacao' ? v : Math.round(v);
+  }
+  out.obs = String(body.obs || '').slice(0, 300);
+  return { day: out };
+}
+
+function readJson(req, limit = 10 * 1024) {
+  return new Promise((resolve, reject) => {
+    let size = 0;
+    const chunks = [];
+    req.on('data', (c) => {
+      size += c.length;
+      if (size > limit) {
+        reject(new Error('corpo grande demais'));
+        req.destroy();
+      } else chunks.push(c);
+    });
+    req.on('end', () => {
+      try {
+        resolve(JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}'));
+      } catch {
+        reject(new Error('JSON inválido'));
+      }
+    });
+    req.on('error', reject);
+  });
 }
 
 function rankOf(minutes) {
@@ -188,7 +295,8 @@ async function handleApi(req, res, url) {
     return sendJson(res, 200, top);
   }
 
-  if (route !== 'GET /api/me' && route !== 'POST /api/heartbeat') {
+  const known = ['GET /api/me', 'POST /api/heartbeat', 'GET /api/admin/rubinot', 'PUT /api/admin/rubinot', 'DELETE /api/admin/rubinot'];
+  if (!known.includes(route)) {
     return sendJson(res, 404, { error: 'rota não encontrada' });
   }
 
@@ -196,11 +304,42 @@ async function handleApi(req, res, url) {
   const user = token && (await twitchUser(token));
   if (!user) return sendJson(res, 401, { error: 'login inválido ou expirado' });
 
+  const isAdmin = Boolean(ADMIN_LOGIN) && user.login.toLowerCase() === ADMIN_LOGIN;
+
+  // Controle Rubinot: só o ADM lê e altera.
+  if (url.pathname === '/api/admin/rubinot') {
+    if (!isAdmin) return sendJson(res, 403, { error: 'acesso restrito' });
+    if (req.method === 'GET') return sendJson(res, 200, { dias: rubinotList() });
+
+    let body;
+    try {
+      body = await readJson(req);
+    } catch (err) {
+      return sendJson(res, 400, { error: err.message });
+    }
+    const { day, error } = parseRubinotDay(body);
+    if (error) return sendJson(res, 400, { error });
+
+    const { data, ...fields } = day;
+    const before = rubinot[data];
+    if (req.method === 'DELETE') delete rubinot[data];
+    else rubinot[data] = fields;
+    try {
+      await saveRubinotDay(data);
+    } catch (err) {
+      console.error('Erro ao salvar o controle Rubinot:', err.message);
+      if (before) rubinot[data] = before;
+      else delete rubinot[data];
+      return sendJson(res, 500, { error: 'não foi possível salvar' });
+    }
+    return sendJson(res, 200, { dias: rubinotList() });
+  }
+
   const rec = (users[user.id] ||= { minutes: 0, lastBeat: 0 });
   Object.assign(rec, { login: user.login, displayName: user.displayName, profileImage: user.profileImage });
 
   if (route === 'GET /api/me') {
-    return sendJson(res, 200, { ...user, minutes: rec.minutes, rank: rankOf(rec.minutes) });
+    return sendJson(res, 200, { ...user, isAdmin, minutes: rec.minutes, rank: rankOf(rec.minutes) });
   }
 
   // POST /api/heartbeat: o navegador chama a cada 60s de player tocando.
@@ -257,6 +396,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 loadUsers()
+  .then(loadRubinot)
   .then(() => {
     server.listen(PORT, () => {
       console.log(`Site rodando em http://localhost:${PORT}`);
@@ -265,7 +405,7 @@ loadUsers()
     });
   })
   .catch((err) => {
-    console.error('Não foi possível carregar os minutos:', err.message);
+    console.error('Não foi possível carregar os dados:', err.message);
     process.exit(1);
   });
 
