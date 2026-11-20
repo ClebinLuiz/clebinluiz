@@ -4,10 +4,18 @@
     {
       "data": "2026-11-19",
       "saldoInicial": 72783309,
-      "saldoFinal": null,
-      "cotacao": 65201,
+      "saldoFinal": 76339195,
+      "cotacao": 63551,
       "rubinicoins": 308,
-      "obs": "Início do controle"
+      "obs": "Início do controle (cotação de manhã 65.201, no fechamento 63.551)"
+    },
+    {
+      "data": "2026-11-20",
+      "saldoInicial": null,
+      "saldoFinal": null,
+      "cotacao": null,
+      "rubinicoins": 308,
+      "obs": ""
     }
   ]
 }
